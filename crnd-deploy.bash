@@ -71,6 +71,7 @@ DB_HOST=${ODOO_DB_HOST:-localhost};
 DB_USER=${ODOO_DB_USER:-odoo};
 DB_PASSWORD=${ODOO_DB_PASSWORD:-odoo};
 INSTALL_MODE=${INSTALL_MODE:-archive};
+ODOO_INSTANCE_NAME=${ODOO_INSTANCE_NAME:-odoo};
 
 
 #--------------------------------------------------
@@ -128,6 +129,8 @@ Options:
                                  default: $DB_PASSWORD
     --install-dir <path>       - directory to install odoo in
                                  default: $PROJECT_ROOT_DIR
+    --odoo-instancename <name> - name for the odoo instance used for service name
+                                 default: odoo
     --install-mode <mode>      - installation mode. could be: 'git', 'archive'
                                  default: $INSTALL_MODE
     --local-postgres           - install local instance of postgresql server
@@ -223,6 +226,10 @@ do
         ;;
         --install-dir)
             PROJECT_ROOT_DIR=$2;
+            shift;
+        ;;
+        --odoo-instancename)
+            ODOO_INSTANCE_NAME=$2;
             shift;
         ;;
         --install-mode)
@@ -366,8 +373,8 @@ config_set_defaults;  # imported from common module
 
 # define addons path to be placed in config files
 ADDONS_PATH="$ODOO_PATH/openerp/addons,$ODOO_PATH/odoo/addons,$ODOO_PATH/addons,$ADDONS_DIR";
-INIT_SCRIPT="/etc/init.d/odoo";
-ODOO_PID_FILE="/var/run/odoo.pid";  # default odoo pid file location
+INIT_SCRIPT="/etc/init.d/$ODOO_INSTANCENAME";
+ODOO_PID_FILE="/var/run/$ODOO_INSTANCENAME.pid";  # default odoo pid file location
 
 install_create_project_dir_tree;   # imported from 'install' module
 
@@ -438,15 +445,15 @@ fi
 # Create Init Script
 #--------------------------------------------------
 echo -e "\n${BLUEC}Creating init script${NC}\n";
-sudo cp $ODOO_PATH/debian/init /etc/init.d/odoo
-sudo chmod a+x /etc/init.d/odoo
-sed -i -r "s@DAEMON=(.*)@DAEMON=$(get_server_script)@" /etc/init.d/odoo;
-sed -i -r "s@CONFIG=(.*)@CONFIG=$ODOO_CONF_FILE@" /etc/init.d/odoo;
-sed -i -r "s@LOGFILE=(.*)@LOGFILE=$LOG_FILE@" /etc/init.d/odoo;
-sed -i -r "s@USER=(.*)@USER=$ODOO_USER@" /etc/init.d/odoo;
-sed -i -r "s@PIDFILE=(.*)@PIDFILE=$ODOO_PID_FILE@" /etc/init.d/odoo;
-sed -i -r "s@PATH=(.*)@PATH=\1:$VENV_DIR/bin@" /etc/init.d/odoo;
-sudo update-rc.d odoo defaults
+sudo cp $ODOO_PATH/debian/init /etc/init.d/$ODOO_INSTANCE_NAME
+sudo chmod a+x /etc/init.d/$ODOO_INSTANCE_NAME
+sed -i -r "s@DAEMON=(.*)@DAEMON=$(get_server_script)@" /etc/init.d/$ODOO_INSTANCE_NAME;
+sed -i -r "s@CONFIG=(.*)@CONFIG=$ODOO_CONF_FILE@" /etc/init.d/$ODOO_INSTANCE_NAME;
+sed -i -r "s@LOGFILE=(.*)@LOGFILE=$LOG_FILE@" /etc/init.d/$ODOO_INSTANCE_NAME;
+sed -i -r "s@USER=(.*)@USER=$ODOO_USER@" /etc/init.d/$ODOO_INSTANCE_NAME;
+sed -i -r "s@PIDFILE=(.*)@PIDFILE=$ODOO_PID_FILE@" /etc/init.d/$ODOO_INSTANCE_NAME;
+sed -i -r "s@PATH=(.*)@PATH=\1:$VENV_DIR/bin@" /etc/init.d/$ODOO_INSTANCE_NAME;
+sudo update-rc.d $ODOO_INSTANCE_NAME defaults
 
 # Configuration file
 sudo chown root:$ODOO_USER $ODOO_CONF_FILE;
@@ -466,7 +473,7 @@ sudo chown $ODOO_USER:$ODOO_USER $PROJECT_ROOT_DIR;
 # Configure logrotate
 #--------------------------------------------------
 echo -e "\n${BLUEC}Configuring logrotate${NC}\n";
-sudo cat > /etc/logrotate.d/odoo << EOF
+sudo cat > /etc/logrotate.d/$ODOO_INSTANCE_NAME << EOF
 $LOG_DIR/*.log {
     copytruncate
     missingok
